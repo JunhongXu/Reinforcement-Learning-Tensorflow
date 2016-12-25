@@ -1,7 +1,7 @@
 # DRL-Tensorflow
 
 # Current Status:
-1. Deep Deterministic Policy Gradient
+1. Deep Deterministic Policy Gradient (DONE)
 
 # Future plans:
 1. Deep Q Learning (with dueling and target networks). Link:https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf and https://arxiv.org/pdf/1511.06581.pdf
