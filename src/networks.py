@@ -5,7 +5,8 @@ import tensorflow as tf
 
 
 class BaseNetwork(object):
-    def __init__(self, input_dim, action_dim, stddev, update_option, name, optimizer, tau=None):
+    def __init__(self, input_dim, action_dim, update_option, name, optimizer,
+                 initializer=tf.contrib.layers.xavier_initializer(), tau=None):
         """
         Abstarct class for creating networks
         :param input_dim:
@@ -21,7 +22,7 @@ class BaseNetwork(object):
         self.update_option = update_option
         self.input_dim = input_dim
         self.action_dim = action_dim
-        self.initializer = tf.truncated_normal_initializer(stddev=stddev)
+        self.initializer = initializer
 
         # build network
         self.network = self.build(name)
@@ -65,7 +66,7 @@ class BaseNetwork(object):
 
 
 class CriticNetwork(BaseNetwork):
-    def __init__(self, input_dim, action_dim, tau, stddev, optimizer, name="critic"):
+    def __init__(self, input_dim, action_dim, tau, optimizer, name="critic"):
         """
         Initialize critic network. The critic network maintains a copy of itself and target updating ops
         Args
@@ -74,14 +75,14 @@ class CriticNetwork(BaseNetwork):
             stddev: standard deviation for initializing network params.
         """
         super(CriticNetwork, self).__init__(input_dim, action_dim, update_option="soft_update",
-                                            name=name, stddev=stddev, optimizer=optimizer, tau=tau)
+                                            name=name, optimizer=optimizer, tau=tau)
 
         self.update_op = self.create_update_op()
         self.network, self.x, self.action = self.network
         self.target, self.target_x, self.target_action = self.target
         # for critic network, the we need one more input variable: y to compute the loss
         # this input variable is fed by: r + gamma * target(s_t+1, action(s_t+1))
-        self.y = tf.placeholder(tf.float32, shape=(None, 1), name="target_q")
+        self.y = tf.placeholder(tf.float32, shape=None, name="target_q")
         self.loss = tf.reduce_mean(tf.squared_difference(self.y, self.network))
 
         # get gradients
@@ -108,7 +109,7 @@ class CriticNetwork(BaseNetwork):
             else:
                 pass
             # net = dense_layer(net, 1, initializer=self.initializer, scope="q", use_bias=True)
-        return net, x, action
+        return tf.squeeze(net), x, action
 
     def compute_gradient(self):
         grad = tf.gradients(self.loss, self.network_param, name="critic_gradients")
@@ -117,12 +118,12 @@ class CriticNetwork(BaseNetwork):
 
 
 class ActorNetwork(BaseNetwork):
-    def __init__(self, input_dim, action_dim, tau, stddev, optimizer, name="actor"):
+    def __init__(self, input_dim, action_dim, tau, optimizer, name="actor"):
         """
         Initialize actor network
         """
         super(ActorNetwork, self).__init__(input_dim, action_dim, update_option="soft_update",
-                                           name=name, stddev=stddev, optimizer=optimizer, tau=tau)
+                                           name=name, optimizer=optimizer, tau=tau)
 
         self.update_op = self.create_update_op()
         self.network, self.x = self.network
@@ -131,7 +132,7 @@ class ActorNetwork(BaseNetwork):
         # for actor network, we need to know the action gradient in critic network
         self.action_gradient = tf.placeholder(tf.float32, shape=(None, action_dim), name="action_gradient")
         self.gradients = self.compute_gradient()
-        self.train_op = self.create_train_op()
+        self.train = self.create_train_op()
 
     def build(self, name):
         x = tf.placeholder(dtype=tf.float32, shape=[None] + self.input_dim, name="%s_input" % name)
@@ -146,7 +147,6 @@ class ActorNetwork(BaseNetwork):
                                              scope="pi", use_bias=True))
             else:
                 pass
-
         return net, x
 
     def compute_gradient(self):
