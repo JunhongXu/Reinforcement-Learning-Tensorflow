@@ -1,4 +1,4 @@
-# DRL-Tensorflow
+# Reinforcement Learning-Tensorflow
 
 # Current Status:
 1. Deep Deterministic Policy Gradient (DONE)
