@@ -35,7 +35,7 @@ class BaseAgent(object):
         # create saver
         self.saver = tf.train.Saver()
 
-    def save(self, step):
+    def save(self):
         """
         Save all model parameters and replay memory to self.save_dir folder.
         The save_path should be models/env_name/name_of_agent.
@@ -58,9 +58,11 @@ class BaseAgent(object):
         else:
             print("Model Restore Failed %s" % self.save_dir)
 
-    def fit(self, max_step=None):
+    def fit(self, max_step_per_game=None):
         """
-        Train the model. The training ends at maximum step.
+        Train the model. The agent training process will end at self.max_step.
+        If max_step_per_game is provided, the agent will perform a limited steps
+        during each game.
         """
         raise NotImplementedError("This method should be implemented")
 

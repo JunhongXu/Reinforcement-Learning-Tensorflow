@@ -33,7 +33,7 @@ class DDPG(BaseAgent):
 
         self.restore()
 
-    def fit(self, max_step=None):
+    def fit(self, max_step_per_game=None):
         # evaluate step variable
         step = self.sess.run(self.step)
 
@@ -90,12 +90,12 @@ class DDPG(BaseAgent):
                     # end of training
 
                 if step % 400 == 0:
-                    self.save(step)
+                    self.save()
 
                 current_state = next_state
 
                 # if max step is provided, terminate at the max_step during every episode.
-                if step % max_step == 0 and step != 0:
+                if step % max_step_per_game == 0 and step != 0:
                     done = True
 
                 # increase step and step variable
