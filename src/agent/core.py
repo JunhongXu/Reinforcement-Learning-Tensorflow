@@ -3,7 +3,7 @@ import os
 
 
 class BaseAgent(object):
-    def __init__(self, sess, memory, env, env_name, max_step, render=True, gamma=.99):
+    def __init__(self, sess, memory, env, env_name, max_step, normalizer=None, warm_up=5000, max_test_epoch=10, render=True, gamma=.99):
         """
         Base agent. Provide basic functions: save, restore, perform training and evaluation (abstract method).
         """
@@ -12,8 +12,11 @@ class BaseAgent(object):
         self.memory = memory
         self.batch_size = memory.batch_size
 
+        self.max_test_epoch = max_test_epoch
         self.env = env
         self.env_name = env_name
+        self.warm_up = warm_up
+        self.normalizer = normalizer
 
         self.render = render
         self.gamma = gamma
@@ -66,7 +69,7 @@ class BaseAgent(object):
         """
         raise NotImplementedError("This method should be implemented")
 
-    def evaluate(self, max_test_epoch):
+    def evaluate(self):
         """
         Evaluate the model. This should only be called when self.max_epoch is reached.
         The evaluation will be recorded.

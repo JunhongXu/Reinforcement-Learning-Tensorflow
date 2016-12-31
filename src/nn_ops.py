@@ -21,7 +21,7 @@ def dense_layer(x, hidden_dim, initializer, scope, use_bias):
         x = tf.matmul(x, w)
 
         if use_bias:
-            b = tf.get_variable("b", shape=hidden_dim, initializer=tf.constant_initializer(.01, dtype=tf.float32))
+            b = tf.get_variable("b", shape=hidden_dim, initializer=tf.constant_initializer(.0, dtype=tf.float32))
             tf.add_to_collection(tf.GraphKeys.MODEL_VARIABLES, b)
             x = tf.nn.bias_add(x, b)
 
@@ -56,9 +56,9 @@ def batch_norm(x, is_train, scope):
     A wrapper for batch normalization layer
     """
     train_time = tf.contrib.layers.batch_norm(x, decay=0.9, scope="%s/bn" % scope, center=True, scale=True,
-                                              updates_collection=None, is_training=is_train, reuse=None)
+                                              updates_collections=None, is_training=True, reuse=None)
     test_time = tf.contrib.layers.batch_norm(x, decay=0.9, scope="%s/bn" % scope, center=True, scale=True,
-                                             updates_collection=None, is_training=is_train, reuse=True)
+                                             updates_collections=None, is_training=False, reuse=True)
 
     x = tf.cond(is_train, lambda: train_time, lambda: test_time)
     return x

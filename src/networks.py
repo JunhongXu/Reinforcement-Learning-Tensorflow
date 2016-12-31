@@ -80,6 +80,9 @@ class CriticNetwork(BaseNetwork):
         self.update_op = self.create_update_op()
         self.network, self.x, self.action = self.network
         self.target, self.target_x, self.target_action = self.target
+
+        self.is_training = tf.placeholder(dtype=tf.bool, name="bn_is_train")
+
         # for critic network, the we need one more input variable: y to compute the loss
         # this input variable is fed by: r + gamma * target(s_t+1, action(s_t+1))
         self.y = tf.placeholder(tf.float32, shape=None, name="target_q")
@@ -97,11 +100,9 @@ class CriticNetwork(BaseNetwork):
         with tf.variable_scope(name):
             if len(self.input_dim) == 1:
                 net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
-                x1 = dense_layer(net, 300, use_bias=True, scope="fc2", initializer=self.initializer)
-                # include action
-                x2 = dense_layer(action, 300, use_bias=True, scope="action_embedding",
-                                 initializer=self.initializer)
-                net = tf.nn.relu(x1 + x2)
+                net = dense_layer(tf.concat(1, (net, action)), 300, use_bias=True, scope="fc2",
+                                  initializer=self.initializer)
+                net = tf.nn.relu(net)
 
                 # for low dim, weights are from uniform[-3e-3, 3e-3]
                 net = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="q",
@@ -140,7 +141,6 @@ class ActorNetwork(BaseNetwork):
             if len(self.input_dim) == 1:
                 net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
                 net = tf.nn.relu(dense_layer(net, 300, use_bias=True, scope="fc2", initializer=self.initializer))
-
                 # use tanh to normalize output between [-1, 1]
                 net = tf.nn.tanh(dense_layer(net, self.action_dim,
                                              initializer=tf.random_uniform_initializer(-3e-3, 3e-3),

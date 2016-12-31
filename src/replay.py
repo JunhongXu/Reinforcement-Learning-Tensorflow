@@ -2,7 +2,7 @@ from __future__ import division
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
-
+import os
 
 class Memory(object):
     """
@@ -10,13 +10,12 @@ class Memory(object):
     multi-threaded as in A3C.
     """
 
-    def __init__(self, memory_size, save_dir, state_dim, action_dim, batch_size):
+    def __init__(self, memory_size, state_dim, action_dim, batch_size):
         """
         A naive implementation of the replay memory, need to do more work on this after testing DDPG
         """
         self.memory_size = memory_size
         self.batch_size = batch_size
-        self.save_dir = save_dir
 
         if type(state_dim) is not tuple:
             state_dim = (state_dim, )
@@ -58,12 +57,7 @@ class Memory(object):
 
         return curr_state, next_state, rewards, terminals, actions
 
-if __name__ == '__main__':
-    current_state, next_state = np.random.randn(1, 2), np.random.randn(1, 2)
-    print(current_state)
-    print(next_state)
-    memory = Memory(3, "", 2, 1, 1)
-    memory.add(current_state, next_state, 1.5, False, 2)
-    memory.add(current_state, next_state, 1.2, False, 1)
-    print(memory.sample())
-    print(memory.sample())
+    def save(self, save_dir):
+        path = os.path.join(save_dir, type(self).__name__)
+        np.save(path, arr=[self.curr_state, self.next_state, self.rewards, self.terminals, self.actions])
+
