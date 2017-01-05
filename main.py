@@ -4,6 +4,8 @@ from src.networks import *
 from src.replay import *
 import gym
 from src.utilities import Normalizer
+from src.env_wrapper import *
+
 # Base learning rate for the Actor network
 ACTOR_LEARNING_RATE = 0.0001
 # Base learning rate for the Critic Network
@@ -24,8 +26,8 @@ actor = ActorNetwork(action_dim=action_dim, input_dim=[state_dim],
                      optimizer=tf.train.AdamOptimizer(ACTOR_LEARNING_RATE), tau=TAU)
 
 memory = Memory(1000000, state_dim, action_dim, 64)
-normalizer = Normalizer(env.observation_space.low, env.observation_space.high, -1, 1)
+env = NormalizeWrapper(env, -1, 1)
 with tf.Session() as sess:
-    agent = DDPG(sess, critic, actor, normalizer=normalizer, max_test_epoch=200,
-                 render=True, env=env, memory=memory, max_step=100000, env_name=ENV_NAME)
+    agent = DDPG(sess, critic, actor, env=env, max_test_epoch=200,
+                 render=True, memory=memory, max_step=100000, env_name=ENV_NAME)
     agent.fit()
