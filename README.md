@@ -2,20 +2,22 @@
 
 # Current Status:
 1. Deep Deterministic Policy Gradient (DONE)
+    
+    Completed the Pendulum-v0 and ContinuousMountainCar OpenAI Gym tasks.
+    
+    log directory contains tensorboard log for each model (only have DDPG currently) and env trained by that model
 
-Completed the Pendulum-v0 and ContinuousMountainCar OpenAI Gym tasks.
+    tmp directory contains OpenAI Gym training videos and statistics
 
-log directory contains tensorboard log for each model (only have DDPG currently) and env trained by that model
+    models directory contains saved tensorflow models and saved memory.
 
-tmp directory contains OpenAI Gym training videos and statistics
+    To run the code, you can run
 
-models directory contains saved tensorflow models and saved memory.
+        $ python main.py
 
-To run the code, you can run
-    $ python main.py
+    To visualize training:
 
-To visualize training:
-    $ tensorboard --logdir=log/DDPG/env_name
+        $ tensorboard --logdir=log/DDPG/env_name
 
     
 
