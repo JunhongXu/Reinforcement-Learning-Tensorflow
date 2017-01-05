@@ -4,6 +4,7 @@ from __future__ import print_function
 import numpy as np
 import os
 
+
 class Memory(object):
     """
     An implementation of the replay memory. This is essential when dealing with DRL algorithms that are not
@@ -59,5 +60,23 @@ class Memory(object):
 
     def save(self, save_dir):
         path = os.path.join(save_dir, type(self).__name__)
-        np.save(path, arr=[self.curr_state, self.next_state, self.rewards, self.terminals, self.actions])
+        if not os.path.exists(path):
+            os.makedirs(path)
+        print("Saving memory...")
+        for name in ("curr_state", "next_state", "rewards", "terminals", "actions"):
+            np.save(os.path.join(path, name), arr=getattr(self, name))
+
+    def restore(self, save_dir):
+        """
+        Restore the memory.
+        """
+        path = os.path.join(save_dir, type(self).__name__)
+        for name in ("curr_state", "next_state", "rewards", "terminals", "actions"):
+            setattr(self, name, np.load(os.path.join(path, "%s.npy" % name)))
+
+    def size(self):
+        for name in ("curr_state", "next_state", "rewards", "terminals", "actions"):
+            print("%s size is %s" % (name, getattr(self, name).shape))
+
+
 

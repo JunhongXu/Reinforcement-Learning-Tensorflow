@@ -8,7 +8,7 @@ from src.policies import *
 from gym.wrappers import Monitor
 import tensorflow as tf
 
-# TODO: 2. Modify reply memory so it is able to store and sample high dimensional data.
+# TODO: 2. sample high dimensional data.
 # TODO: 3. Add batch normalization to actor and critic networks
 # TODO: 4. Add high dimensional network build.
 # TODO: 7. Create Policy class so that different policies can be implemented.
