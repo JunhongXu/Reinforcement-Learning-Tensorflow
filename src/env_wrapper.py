@@ -1,4 +1,7 @@
 from gym import Wrapper
+from src.utilities import rgb2grey
+import numpy as np
+import cv2
 
 
 class NormalizeWrapper(Wrapper):
@@ -35,3 +38,53 @@ class NormalizeWrapper(Wrapper):
 
         return normalized_state
 
+
+class FrameSkippingWrapper(Wrapper):
+    def __init__(self, env, num_skipping=4, height=84, width=84):
+        """
+        Create the frame skipping wrapper. Normalize each frame into gray-scaled image and stack continuous
+        n frames together.
+        """
+        super(FrameSkippingWrapper, self).__init__(env)
+
+        self.height = height
+        self.width = width
+        self.num_skipping = num_skipping
+        self.history = np.empty((height, width, self.num_skipping))
+
+    def _step(self, action):
+        """
+        Override parent's _step function to stack n images together.
+        Return a (84, 84, 4) state tensor, action repeat for n times.
+        """
+        s, r, done, info = self.env.step(action.flatten())
+        self.history[..., :-1] = self.history[..., 1:]
+        self.history[..., -1] = cv2.resize(rgb2grey(s), (self.width, self.height))
+        return self.history, r, done, info
+
+    def _reset(self):
+        obs = self.env.reset()
+        for i in range(self.num_skipping):
+            self.history[..., i] = cv2.resize(rgb2grey(obs), (self.width, self.height))
+        return self.history
+
+
+if __name__ == '__main__':
+    import gym
+    from matplotlib import pyplot as plt
+    env = gym.make("Breakout-v0")
+    env = FrameSkippingWrapper(env, 4)
+    obs = env.reset()
+    while True:
+        obs, r, done, info = env.step(env.action_space.sample())
+        if done:
+            break
+    plt.subplot(4, 1, 1)
+    plt.imshow(obs[..., 0], cmap='Greys')
+    plt.subplot(4, 1, 2)
+    plt.imshow(obs[..., 1], cmap='Greys')
+    plt.subplot(4, 1, 3)
+    plt.imshow(obs[..., 2], cmap='Greys')
+    plt.subplot(4, 1, 4)
+    plt.imshow(obs[..., 3], cmap='Greys')
+    plt.show()

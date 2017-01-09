@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def dense_layer(x, hidden_dim, initializer, scope, use_bias):
+def dense_layer(x, output_dim, initializer, scope, use_bias):
     """
     A convenient function for constructing fully connected layers
     """
@@ -12,16 +12,16 @@ def dense_layer(x, hidden_dim, initializer, scope, use_bias):
     else:                   # if the previous layer is convolutional, the shape of X is (N, H, W, C)
         N, H, W, C = shape
         D = H * W * C
-        x = tf.reshape(x, (N, D))
+        x = tf.reshape(x, (-1, D))
 
     with tf.variable_scope(scope):
-        w = tf.get_variable("W", shape=(D, hidden_dim), initializer=initializer)
+        w = tf.get_variable("W", shape=(D, output_dim), initializer=initializer)
         tf.add_to_collection(tf.GraphKeys.MODEL_VARIABLES, w)
         # calculate
         x = tf.matmul(x, w)
 
         if use_bias:
-            b = tf.get_variable("b", shape=hidden_dim, initializer=tf.constant_initializer(.0, dtype=tf.float32))
+            b = tf.get_variable("b", shape=output_dim, initializer=tf.constant_initializer(.0, dtype=tf.float32))
             tf.add_to_collection(tf.GraphKeys.MODEL_VARIABLES, b)
             x = tf.nn.bias_add(x, b)
 

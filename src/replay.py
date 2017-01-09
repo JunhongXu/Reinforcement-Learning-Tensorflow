@@ -55,7 +55,6 @@ class Memory(object):
         rewards = self.rewards[indexes]
         terminals = self.terminals[indexes]
         actions = self.actions[indexes]
-
         return curr_state, next_state, rewards, terminals, actions
 
     def save(self, save_dir):

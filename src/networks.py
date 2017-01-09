@@ -1,6 +1,7 @@
 from __future__ import division
 from __future__ import print_function
-from nn_ops import *
+from  __future__ import absolute_import
+from src.nn_ops import *
 import tensorflow as tf
 
 
@@ -95,7 +96,7 @@ class CriticNetwork(BaseNetwork):
         self.train = self.create_train_op()
 
     def build(self, name):
-        x = tf.placeholder(dtype=tf.float32, shape=[None] + self.input_dim, name="%s_input" % name)
+        x = tf.placeholder(dtype=tf.float32, shape=(None, ) + self.input_dim, name="%s_input" % name)
         action = tf.placeholder(tf.float32, shape=[None, self.action_dim], name="%s_action" % name)
         with tf.variable_scope(name):
             if len(self.input_dim) == 1:
@@ -108,8 +109,31 @@ class CriticNetwork(BaseNetwork):
                 net = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="q",
                                   use_bias=True)
             else:
-                pass
-            # net = dense_layer(net, 1, initializer=self.initializer, scope="q", use_bias=True)
+                # first convolutional layer with stride 4
+                net = conv2d(x, 3, initializer=self.initializer, output_size=32, scope="conv1", stride=4, use_bias=True)
+                net = tf.nn.relu(net)
+
+                # second convolutional layer with stride 1
+                net = conv2d(net, 3, stride=2, output_size=32, initializer=self.initializer, scope="conv2",
+                             use_bias=True)
+                net = tf.nn.relu(net)
+
+                # third convolutional layer with stride 1
+                net = conv2d(net, 3, stride=1, output_size=32, initializer=self.initializer, use_bias=True,
+                             scope="conv3")
+                net = tf.nn.relu(net)
+
+                # first dense layer
+                net = tf.nn.relu(dense_layer(net, output_dim=200, initializer=self.initializer, scope="fc1",
+                                             use_bias=True))
+
+                # second dense layer with action embedded
+                net = tf.nn.relu(dense_layer(tf.concat(1, (net, action)), output_dim=200, initializer=self.initializer,
+                                             scope="fc2", use_bias=True))
+
+                # Q layer
+                net = dense_layer(net, output_dim=1, initializer=tf.random_uniform_initializer(-4e-4, 4e-4), scope="Q",
+                                  use_bias=True)
         return tf.squeeze(net), x, action
 
     def compute_gradient(self):
@@ -136,7 +160,7 @@ class ActorNetwork(BaseNetwork):
         self.train = self.create_train_op()
 
     def build(self, name):
-        x = tf.placeholder(dtype=tf.float32, shape=[None] + self.input_dim, name="%s_input" % name)
+        x = tf.placeholder(dtype=tf.float32, shape=(None, ) + self.input_dim, name="%s_input" % name)
         with tf.variable_scope(name):
             if len(self.input_dim) == 1:
                 net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
@@ -146,8 +170,32 @@ class ActorNetwork(BaseNetwork):
                                              initializer=tf.random_uniform_initializer(-3e-3, 3e-3),
                                              scope="pi", use_bias=True))
             else:
-                pass
-        return net, x
+                # first convolutional layer with stride 4
+                net = conv2d(x, 3, initializer=self.initializer, output_size=32, scope="conv1", stride=4, use_bias=True)
+                net = tf.nn.relu(net)
+
+                # second convolutional layer with stride 2
+                net = conv2d(net, 3, stride=2, output_size=32, initializer=self.initializer, scope="conv2",
+                             use_bias=True)
+                net = tf.nn.relu(net)
+
+                # third convolutional layer with stride 1
+                net = conv2d(net, 3, stride=1, output_size=32, initializer=self.initializer, use_bias=True,
+                             scope="conv3")
+                net = tf.nn.relu(net)
+
+                # first dense layer
+                net = tf.nn.relu(dense_layer(net, output_dim=200, initializer=self.initializer, scope="fc1",
+                                             use_bias=True))
+
+                # second dense layer with action embedded
+                net = tf.nn.relu(dense_layer(net, output_dim=200, initializer=self.initializer,
+                                             scope="fc2", use_bias=True))
+                # Q layer
+                net = tf.tanh(dense_layer(net, output_dim=self.action_dim,
+                                          initializer=tf.random_uniform_initializer(-4e-4, 4e-4),
+                                          scope="pi", use_bias=True))
+            return net, x
 
     def compute_gradient(self):
         # We negate action gradient because we want the parameters

@@ -30,8 +30,8 @@ class BaseAgent(object):
         self.warm_up = warm_up
         self.evaluate_every = evaluate_every
         self.monitor_dir = os.path.join("tmp", type(self).__name__, env_name)
-        self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir, "train"),  #TODO: when episode_id > 100, this will not be in the evaluation.
-                               video_callable=lambda x: (x - x / self.evaluate_every) % self.evaluate_every == 0)
+        self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir, "train")) #TODO: when episode_id > 100, this will not be in the evaluation.
+
         self.env = env
 
         # for summary writer
@@ -75,6 +75,7 @@ class BaseAgent(object):
         print("Saving the model to path %s" % path)
         self.memory.save(self.save_dir)
         self.saver.save(self.sess, path)
+        print("Done saving!")
 
     def restore(self):
         """

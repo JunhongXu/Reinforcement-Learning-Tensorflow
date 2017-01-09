@@ -8,20 +8,18 @@ from src.policies import *
 from gym.wrappers import Monitor
 import tensorflow as tf
 
-# TODO: 2. sample high dimensional data.
 # TODO: 3. Add batch normalization to actor and critic networks
-# TODO: 4. Add high dimensional network build.
 # TODO: 7. Create Policy class so that different policies can be implemented.
-
 
 class DDPG(BaseAgent):
     def __init__(self, sess, critic, actor, env, env_name, memory, max_step, warm_up=5000,
-                 max_test_epoch=3, gamma=.99, render=True):
+                 max_test_epoch=3, gamma=.99, evaluate_every=1000, render=True):
         """
         A deep deterministic policy gradient agent.
         """
         super(DDPG, self).__init__(sess, env=env, memory=memory, gamma=gamma, render=render, max_step=max_step,
-                                   env_name=env_name, warm_up=warm_up, max_test_epoch=max_test_epoch)
+                                   env_name=env_name, warm_up=warm_up, evaluate_every=evaluate_every,
+                                   max_test_epoch=max_test_epoch)
 
         self.policy_noise = OUNoise(actor.action_dim)
 
@@ -55,6 +53,7 @@ class DDPG(BaseAgent):
 
             # re-initialize per game variables
             current_state = self.monitor.reset()
+            current_state = current_state[np.newaxis]
             per_game_step = 0
             per_game_reward = 0
             done = False
@@ -65,8 +64,6 @@ class DDPG(BaseAgent):
                 if self.render:
                     self.monitor.render()
 
-                current_state = current_state.reshape(1, -1)
-
                 # take a noisy action
                 action = self.action(current_state) + (self.policy_noise.noise() * self.action_bound)
 
@@ -75,7 +72,7 @@ class DDPG(BaseAgent):
                 self.writer.add_summary(summary_q, global_step=self.global_step)
 
                 next_state, reward, done, _ = self.monitor.step(action)
-                next_state = next_state.reshape(1, -1)
+                next_state = next_state[np.newaxis]
                 average_reward += reward
                 per_game_reward += reward
 
@@ -115,7 +112,7 @@ class DDPG(BaseAgent):
                         self.sess.run([self.actor.update_op, self.critic.update_op])
                         # end of training
 
-                if self.global_step % 5000 == 0 and self.global_step != 0:
+                if self.global_step % 15000 == 0 and self.global_step != 0:
                     self.save()
 
                 current_state = next_state
@@ -155,7 +152,7 @@ class DDPG(BaseAgent):
             # start one epoch
             while not done:
                 self.monitor.render()
-                action = self.action(state.reshape(1, -1))
+                action = self.action(state[np.newaxis])
                 state, reward, done, _ = monitor.step(action)
                 total_reward += reward
                 step += 1
