@@ -6,7 +6,7 @@ import tensorflow as tf
 
 
 class BaseNetwork(object):
-    def __init__(self, input_dim, action_dim, update_option, name, optimizer,
+    def __init__(self, input_dim, action_dim, update_option, name, optimizer, use_bn,
                  initializer=tf.contrib.layers.xavier_initializer(), tau=None):
         """
         Abstarct class for creating networks
@@ -20,6 +20,7 @@ class BaseNetwork(object):
             assert (tau is not None), "Soft update needs to specify tau"
             self.tau = tau
 
+        self.use_bn = use_bn
         self.update_option = update_option
         self.input_dim = input_dim
         self.action_dim = action_dim
@@ -67,7 +68,7 @@ class BaseNetwork(object):
 
 
 class CriticNetwork(BaseNetwork):
-    def __init__(self, input_dim, action_dim, tau, optimizer, name="critic"):
+    def __init__(self, input_dim, action_dim, tau, optimizer, use_bn=False, name="critic"):
         """
         Initialize critic network. The critic network maintains a copy of itself and target updating ops
         Args
@@ -75,7 +76,7 @@ class CriticNetwork(BaseNetwork):
             action_dim: dimension of action space.
             stddev: standard deviation for initializing network params.
         """
-        super(CriticNetwork, self).__init__(input_dim, action_dim, update_option="soft_update",
+        super(CriticNetwork, self).__init__(input_dim, action_dim, use_bn=use_bn, update_option="soft_update",
                                             name=name, optimizer=optimizer, tau=tau)
 
         self.update_op = self.create_update_op()
@@ -113,7 +114,7 @@ class CriticNetwork(BaseNetwork):
                 net = conv2d(x, 3, initializer=self.initializer, output_size=32, scope="conv1", stride=4, use_bias=True)
                 net = tf.nn.relu(net)
 
-                # second convolutional layer with stride 1
+                # second convolutional layer with stride 2
                 net = conv2d(net, 3, stride=2, output_size=32, initializer=self.initializer, scope="conv2",
                              use_bias=True)
                 net = tf.nn.relu(net)
@@ -143,12 +144,12 @@ class CriticNetwork(BaseNetwork):
 
 
 class ActorNetwork(BaseNetwork):
-    def __init__(self, input_dim, action_dim, tau, optimizer, name="actor"):
+    def __init__(self, input_dim, action_dim, tau, optimizer, use_bn=False, name="actor"):
         """
         Initialize actor network
         """
         super(ActorNetwork, self).__init__(input_dim, action_dim, update_option="soft_update",
-                                           name=name, optimizer=optimizer, tau=tau)
+                                           name=name, optimizer=optimizer, tau=tau, use_bn=use_bn)
 
         self.update_op = self.create_update_op()
         self.network, self.x = self.network
@@ -161,14 +162,23 @@ class ActorNetwork(BaseNetwork):
 
     def build(self, name):
         x = tf.placeholder(dtype=tf.float32, shape=(None, ) + self.input_dim, name="%s_input" % name)
+        if self.use_bn:
+            is_train = tf.placeholder(tf.bool, name="isTrain")
         with tf.variable_scope(name):
             if len(self.input_dim) == 1:
-                net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
-                net = tf.nn.relu(dense_layer(net, 300, use_bias=True, scope="fc2", initializer=self.initializer))
-                # use tanh to normalize output between [-1, 1]
-                net = tf.nn.tanh(dense_layer(net, self.action_dim,
-                                             initializer=tf.random_uniform_initializer(-3e-3, 3e-3),
-                                             scope="pi", use_bias=True))
+                if self.use_bn:
+                    # normalize input
+                    inpt = batch_norm(x, is_train, "inpt")
+                    net = dense_layer(x, 400, use_bias=False, scope="fc1", initializer=self.initializer)
+                    net = tf.nn.relu(batch_norm(net, is_train=is_train, scope="fc1"))
+
+                else:
+                    net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
+                    net = tf.nn.relu(dense_layer(net, 300, use_bias=True, scope="fc2", initializer=self.initializer))
+                    # use tanh to normalize output between [-1, 1]
+                    net = tf.nn.tanh(dense_layer(net, self.action_dim,
+                                                 initializer=tf.random_uniform_initializer(-3e-3, 3e-3),
+                                                 scope="pi", use_bias=True))
             else:
                 # first convolutional layer with stride 4
                 net = conv2d(x, 3, initializer=self.initializer, output_size=32, scope="conv1", stride=4, use_bias=True)

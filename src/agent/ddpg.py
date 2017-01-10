@@ -49,7 +49,7 @@ class DDPG(BaseAgent):
         # iterate until reach the maximum step
         while self.global_step < self.max_step:
             # evaluate model
-            if self.global_epoch % self.evaluate_every == 0:
+            if self.global_epoch % self.evaluate_every == 0 and self.global_epoch != 0:
                 self.evaluate()
 
             # re-initialize per game variables
@@ -59,6 +59,8 @@ class DDPG(BaseAgent):
             per_game_reward = 0
             done = False
             self.policy_noise.reset()
+            print("Epoch %s" % self.global_epoch)
+            print("Memory count %s" % self.memory.count)
             print("Progress: %s %s" % (progress(self.global_step, self.max_step, 100)[0],
                                        progress(self.global_step, self.max_step, 100)[1]))
             while not done:
