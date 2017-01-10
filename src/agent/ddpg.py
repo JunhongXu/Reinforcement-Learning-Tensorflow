@@ -11,14 +11,15 @@ import tensorflow as tf
 # TODO: 3. Add batch normalization to actor and critic networks
 # TODO: 7. Create Policy class so that different policies can be implemented.
 
+
 class DDPG(BaseAgent):
-    def __init__(self, sess, critic, actor, env, env_name, memory, max_step, warm_up=5000,
+    def __init__(self, sess, critic, actor, env, env_name, memory, max_step, record=True, warm_up=5000,
                  max_test_epoch=3, gamma=.99, evaluate_every=1000, render=True):
         """
         A deep deterministic policy gradient agent.
         """
         super(DDPG, self).__init__(sess, env=env, memory=memory, gamma=gamma, render=render, max_step=max_step,
-                                   env_name=env_name, warm_up=warm_up, evaluate_every=evaluate_every,
+                                   env_name=env_name, warm_up=warm_up, record=record, evaluate_every=evaluate_every,
                                    max_test_epoch=max_test_epoch)
 
         self.policy_noise = OUNoise(actor.action_dim)
@@ -64,11 +65,14 @@ class DDPG(BaseAgent):
                 if self.render:
                     self.monitor.render()
 
-                # take a noisy action
-                action = self.action(current_state) + (self.policy_noise.noise() * self.action_bound)
-
+                if self.warm_up > self.memory.count:
+                    # take a random action to fill up the memory
+                    action = self.monitor.action_space.sample()
+                else:
+                    # take a noisy action
+                    action = self.action(current_state) + (self.policy_noise.noise() * self.action_bound)
                 # evaluate the q value
-                summary_q = self.critic_predict(current_state, action, summary=True)
+                summary_q = self.critic_predict(current_state, action.reshape(1, -1), summary=True)
                 self.writer.add_summary(summary_q, global_step=self.global_step)
 
                 next_state, reward, done, _ = self.monitor.step(action)
@@ -82,7 +86,7 @@ class DDPG(BaseAgent):
                 self.memory.add(current_state, next_state, reward=reward, action=action, terminal=terminal)
 
                 # train models
-                if self.global_step > self.warm_up:
+                if self.warm_up < self.memory.count:
                     if self.batch_size < self.memory.count:
                         # random sample
                         s, next_s, r, t, a = self.memory.sample()

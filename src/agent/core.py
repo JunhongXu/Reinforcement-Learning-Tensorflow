@@ -1,10 +1,11 @@
 import tensorflow as tf
 import os
 from gym.wrappers import Monitor
+from gym.wrappers.time_limit import TimeLimit
 
 
 class BaseAgent(object):
-    def __init__(self, sess, memory, env, env_name, max_step,
+    def __init__(self, sess, memory, env, env_name, max_step, record=True,
                  evaluate_every=10, warm_up=5000, max_test_epoch=10, render=True, gamma=.99):
         """
         Base agent. Provide basic functions: save, restore, perform training and evaluation (abstract method).
@@ -30,8 +31,15 @@ class BaseAgent(object):
         self.warm_up = warm_up
         self.evaluate_every = evaluate_every
         self.monitor_dir = os.path.join("tmp", type(self).__name__, env_name)
-        self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir, "train")) #TODO: when episode_id > 100, this will not be in the evaluation.
+        if record:
+            # TODO: only record on evaluation episode.
+            # TODO: when recording high dimensional data, monitor will raise memory allocation error.
+            self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir, "train"))
+        else:
+            # wrap the monitor with TimeLimit monitor
+            self.monitor = TimeLimit(env, max_episode_steps=env.spec.timestep_limit)
 
+        # to be wrapped during evaluation
         self.env = env
 
         # for summary writer
