@@ -73,7 +73,7 @@ class BaseAgent(object):
         # path to the checkpoint name
         path = os.path.join(self.save_dir, type(self).__name__)
         print("Saving the model to path %s" % path)
-        self.memory.save(self.save_dir)
+        # self.memory.save(self.save_dir)
         self.saver.save(self.sess, path)
         print("Done saving!")
 
@@ -82,14 +82,15 @@ class BaseAgent(object):
         Restore model parameters and replay memory from self.save_dir folder.
         The name of the folder should be models/env_name
         """
+        # TODO: Need to find a better way to store memory data. Storing all states is not efficient.
         ckpts = tf.train.get_checkpoint_state(self.save_dir)
         if ckpts and ckpts.model_checkpoint_path:
             ckpt = ckpts.model_checkpoint_path
             self.saver.restore(self.sess, ckpt)
-            self.memory.restore(self.save_dir)
+            # self.memory.restore(self.save_dir)
             print("Successfully load the model %s" % ckpt)
-            print("Memory size is:")
-            self.memory.size()
+            # print("Memory size is:")
+            # self.memory.size()
         else:
             print("Model Restore Failed %s" % self.save_dir)
 
