@@ -80,10 +80,13 @@ class CriticNetwork(BaseNetwork):
                                             name=name, optimizer=optimizer, tau=tau)
 
         self.update_op = self.create_update_op()
-        self.network, self.x, self.action = self.network
-        self.target, self.target_x, self.target_action = self.target
 
-        self.is_training = tf.placeholder(dtype=tf.bool, name="bn_is_train")
+        if self.use_bn:
+            self.network, self.x, self.action, self.network_train = self.network
+            self.target, self.target_x, self.target_action, self.target_train = self.target
+        else:
+            self.network, self.x, self.action = self.network
+            self.target, self.target_x, self.target_action = self.target
 
         # for critic network, the we need one more input variable: y to compute the loss
         # this input variable is fed by: r + gamma * target(s_t+1, action(s_t+1))
@@ -101,14 +104,31 @@ class CriticNetwork(BaseNetwork):
         action = tf.placeholder(tf.float32, shape=[None, self.action_dim], name="%s_action" % name)
         with tf.variable_scope(name):
             if len(self.input_dim) == 1:
-                net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
-                net = dense_layer(tf.concat(1, (net, action)), 300, use_bias=True, scope="fc2",
-                                  initializer=self.initializer)
-                net = tf.nn.relu(net)
+                if self.use_bn:
+                    is_train = tf.placeholder(tf.bool, name="%s_is_train" % name)
 
-                # for low dim, weights are from uniform[-3e-3, 3e-3]
-                net = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="q",
-                                  use_bias=True)
+                    # normalize input
+                    x = batch_norm(x, is_train=is_train, scope="norm_inpt")
+
+                    # normalize first layer
+                    net = dense_layer(x, 400, self.initializer, scope="fc1", use_bias=True)
+                    net = tf.nn.relu(batch_norm(net, is_train, scope="fc1"))
+
+                    # second layer without normalizing
+                    net = tf.nn.relu(dense_layer(tf.concat(1, (net, action)), 300, use_bias=True, scope="fc2",
+                                                 initializer=self.initializer))
+                    net = dense_layer(net, 1, tf.random_uniform_initializer(-3e-3, 3e-3), scope="q", use_bias=True)
+                    return net, x, action, is_train
+                else:
+
+                    net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
+                    net = dense_layer(tf.concat(1, (net, action)), 300, use_bias=True, scope="fc2",
+                                      initializer=self.initializer)
+                    net = tf.nn.relu(net)
+
+                    # for low dim, weights are from uniform[-3e-3, 3e-3]
+                    net = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="q",
+                                      use_bias=True)
             else:
                 # first convolutional layer with stride 4
                 net = conv2d(x, 3, initializer=self.initializer, output_size=32, scope="conv1", stride=4, use_bias=True)
@@ -152,8 +172,13 @@ class ActorNetwork(BaseNetwork):
                                            name=name, optimizer=optimizer, tau=tau, use_bn=use_bn)
 
         self.update_op = self.create_update_op()
-        self.network, self.x = self.network
-        self.target, self.target_x = self.target
+
+        if use_bn:
+            self.network, self.x, self.network_train = self.network
+            self.target, self.target_x, self.target_train = self.target
+        else:
+            self.network, self.x = self.network
+            self.target, self.target_x = self.target
 
         # for actor network, we need to know the action gradient in critic network
         self.action_gradient = tf.placeholder(tf.float32, shape=(None, action_dim), name="action_gradient")
@@ -162,16 +187,29 @@ class ActorNetwork(BaseNetwork):
 
     def build(self, name):
         x = tf.placeholder(dtype=tf.float32, shape=(None, ) + self.input_dim, name="%s_input" % name)
-        if self.use_bn:
-            is_train = tf.placeholder(tf.bool, name="isTrain")
         with tf.variable_scope(name):
             if len(self.input_dim) == 1:
+                # low dimensional case
                 if self.use_bn:
+                    is_train = tf.placeholder(tf.bool, name="%s_isTrain" % name)
                     # normalize input
-                    inpt = batch_norm(x, is_train, "inpt")
-                    net = dense_layer(x, 400, use_bias=False, scope="fc1", initializer=self.initializer)
+                    inpt = batch_norm(x, is_train, "%s_norm_inpt" % name)
+
+                    # normalize the first layer
+                    net = dense_layer(inpt, 400, use_bias=True, scope="fc1", initializer=self.initializer)
                     net = tf.nn.relu(batch_norm(net, is_train=is_train, scope="fc1"))
 
+                    # normalize the second layer
+                    net = dense_layer(net, 300, use_bias=True, scope="fc2", initializer=self.initializer)
+                    net = tf.nn.relu(batch_norm(net, is_train=is_train, scope="fc2"))
+
+                    # normalize the output layer
+                    net = dense_layer(net, self.action_dim, use_bias=True,
+                                      initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="pi")
+                    net = tf.nn.tanh(batch_norm(net, is_train=is_train, scope="pi"))
+
+                    # return one more parameter: is_train
+                    return net, x, is_train
                 else:
                     net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
                     net = tf.nn.relu(dense_layer(net, 300, use_bias=True, scope="fc2", initializer=self.initializer))
