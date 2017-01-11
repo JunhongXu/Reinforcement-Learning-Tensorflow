@@ -108,17 +108,17 @@ class CriticNetwork(BaseNetwork):
                     is_train = tf.placeholder(tf.bool, name="%s_is_train" % name)
 
                     # normalize input
-                    x = batch_norm(x, is_train=is_train, scope="norm_inpt")
+                    inpt = batch_norm(x, is_train=is_train, scope="norm_inpt")
 
                     # normalize first layer
-                    net = dense_layer(x, 400, self.initializer, scope="fc1", use_bias=True)
+                    net = dense_layer(inpt, 400, self.initializer, scope="fc1", use_bias=True)
                     net = tf.nn.relu(batch_norm(net, is_train, scope="fc1"))
 
                     # second layer without normalizing
                     net = tf.nn.relu(dense_layer(tf.concat(1, (net, action)), 300, use_bias=True, scope="fc2",
                                                  initializer=self.initializer))
                     net = dense_layer(net, 1, tf.random_uniform_initializer(-3e-3, 3e-3), scope="q", use_bias=True)
-                    return net, x, action, is_train
+                    return tf.squeeze(net), x, action, is_train
                 else:
 
                     net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
