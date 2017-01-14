@@ -13,16 +13,14 @@ import tensorflow as tf
 
 
 class DDPG(BaseAgent):
-    def __init__(self, sess, critic, actor, env, env_name, memory, max_step, record=True, warm_up=5000,
+    def __init__(self, sess, critic, actor, env, env_name, memory, policy, max_step, record=True, warm_up=5000,
                  max_test_epoch=3, gamma=.99, evaluate_every=1000, render=True):
         """
         A deep deterministic policy gradient agent.
         """
-        super(DDPG, self).__init__(sess, env=env, memory=memory, gamma=gamma, render=render, max_step=max_step,
-                                   env_name=env_name, warm_up=warm_up, record=record, evaluate_every=evaluate_every,
-                                   max_test_epoch=max_test_epoch)
-
-        self.policy_noise = OUNoise(actor.action_dim)
+        super(DDPG, self).__init__(sess, env=env, policy=policy, memory=memory, gamma=gamma, render=render,
+                                   max_step=max_step, env_name=env_name, warm_up=warm_up, record=record,
+                                   evaluate_every=evaluate_every, max_test_epoch=max_test_epoch)
 
         # action bound
         self.action_bound = env.action_space.high
@@ -58,7 +56,7 @@ class DDPG(BaseAgent):
             per_game_step = 0
             per_game_reward = 0
             done = False
-            self.policy_noise.reset()
+            self.policy.reset()
             print("Progress: %s %s" % (progress(self.global_step, self.max_step, 100)[0],
                                        progress(self.global_step, self.max_step, 100)[1]))
             while not done:
@@ -70,7 +68,7 @@ class DDPG(BaseAgent):
                     action = self.monitor.action_space.sample()
                 else:
                     # take a noisy action
-                    action = self.action(current_state) + (self.policy_noise.noise() * self.action_bound)
+                    action = self.action(current_state) + (self.policy.noise() * self.action_bound)
                 # evaluate the q value
                 summary_q = self.critic_predict(current_state, action.reshape(1, -1), summary=True)
                 self.writer.add_summary(summary_q, global_step=self.global_step)

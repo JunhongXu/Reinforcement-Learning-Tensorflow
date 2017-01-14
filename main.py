@@ -23,10 +23,10 @@ critic = CriticNetwork(action_dim=action_dim, input_dim= state_dim,
                        optimizer=tf.train.AdamOptimizer(CRITIC_LEARNING_RATE), tau=TAU)
 actor = ActorNetwork(action_dim=action_dim, input_dim= state_dim,
                      optimizer=tf.train.AdamOptimizer(ACTOR_LEARNING_RATE), tau=TAU)
-
+policy = OUNoise(action_dim)
 memory = Memory(1000000, state_dim, action_dim, 64)
 env = NormalizeWrapper(env, -1, 1)
 with tf.Session() as sess:
-    agent = DDPG(sess, critic, actor, env=env, max_test_epoch=200,
+    agent = DDPG(sess, critic, actor, env=env, max_test_epoch=200, policy=policy,
                  render=True, memory=memory, max_step=100000, env_name=ENV_NAME)
     agent.fit()

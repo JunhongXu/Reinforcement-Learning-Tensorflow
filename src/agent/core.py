@@ -5,7 +5,7 @@ from gym.wrappers.time_limit import TimeLimit
 
 
 class BaseAgent(object):
-    def __init__(self, sess, memory, env, env_name, max_step, record=True,
+    def __init__(self, sess, memory, env, env_name, max_step, policy, record=True,
                  evaluate_every=10, warm_up=5000, max_test_epoch=10, render=True, gamma=.99):
         """
         Base agent. Provide basic functions: save, restore, perform training and evaluation (abstract method).
@@ -30,6 +30,7 @@ class BaseAgent(object):
         self.env_name = env_name
         self.warm_up = warm_up
         self.evaluate_every = evaluate_every
+        self.policy = policy
         self.monitor_dir = os.path.join("tmp", type(self).__name__, env_name)
         if record:
             # TODO: only record on evaluation episode.
