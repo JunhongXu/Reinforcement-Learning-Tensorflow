@@ -207,9 +207,11 @@ class ActorNetwork(BaseNetwork):
 
 
 class NAFNetwork(BaseNetwork):
-    def __init__(self, input_dim, action_dim, name, optimizer, update_option="soft_update"):
+    def __init__(self, input_dim, action_dim, name, optimizer, use_bn, update_option="soft_update"):
         super(NAFNetwork, self).__init__(input_dim=input_dim, action_dim=action_dim, name=name, optimizer=optimizer,
                                          update_option=update_option)
+
+        self.use_bn = use_bn
 
     def compute_gradient(self):
         pass
@@ -222,6 +224,8 @@ class NAFNetwork(BaseNetwork):
         # define placeholders
         x = tf.placeholder(dtype=tf.float32, name="%s_state_input" % name)
         action = tf.placeholder(dtype=tf.float32, name="%s_action_input" % name)
+        if self.use_bn:
+            is_train = tf.placeholder(dtype=tf.bool, name="%s_is_train" % name)
 
         # define network
         with tf.variable_scope(name):
@@ -236,4 +240,12 @@ class NAFNetwork(BaseNetwork):
                 # define V
                 with tf.variable_scope("%s_v" % name):
                     # v = dense_layer(net, 1, initializer=)
+                    pass
+
+                # define action output u
+                with tf.variable_scope("%s_u" % name):
+                    pass
+
+                # define P
+                with tf.variable_scope("%s_p" % name):
                     pass

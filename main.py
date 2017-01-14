@@ -27,6 +27,6 @@ policy = OUNoise(action_dim)
 memory = Memory(1000000, state_dim, action_dim, 64)
 env = NormalizeWrapper(env, -1, 1)
 with tf.Session() as sess:
-    agent = DDPG(sess, critic, actor, env=env, max_test_epoch=200, policy=policy,
-                 render=True, memory=memory, max_step=100000, env_name=ENV_NAME)
+    agent = DDPG(sess, critic, actor, env=env, max_test_epoch=200, warm_up=10000, policy=policy,
+                 render=True, memory=memory, max_step=1000000, env_name=ENV_NAME)
     agent.fit()
