@@ -55,9 +55,9 @@ def batch_norm(x, is_train, scope):
     """
     A wrapper for batch normalization layer
     """
-    train_time = tf.contrib.layers.batch_norm(x, decay=0.9, scope="%s/bn" % scope, center=True, scale=True,
+    train_time = tf.contrib.layers.batch_norm(x, decay=0.9, scope="%s/bn" % scope, center=True, scale=False,
                                               updates_collections=None, is_training=True, reuse=None)
-    test_time = tf.contrib.layers.batch_norm(x, decay=0.9, scope="%s/bn" % scope, center=True, scale=True,
+    test_time = tf.contrib.layers.batch_norm(x, decay=0.9, scope="%s/bn" % scope, center=True, scale=False,
                                              updates_collections=None, is_training=False, reuse=True)
 
     x = tf.cond(is_train, lambda: train_time, lambda: test_time)

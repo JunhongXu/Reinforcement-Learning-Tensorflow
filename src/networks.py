@@ -7,7 +7,7 @@ import tensorflow as tf
 
 class BaseNetwork(object):
     def __init__(self, input_dim, action_dim, update_option, name, optimizer,
-                 initializer=tf.contrib.layers.xavier_initializer(), tau=None):
+                 initializer=tf.contrib.layers.variance_scaling_initializer(mode="FAN_IN"), tau=None):
         """
         Abstarct class for creating networks
         :param input_dim:
@@ -204,3 +204,36 @@ class ActorNetwork(BaseNetwork):
 
         grads = tf.gradients(self.network, self.network_param, -self.action_gradient)
         return grads
+
+
+class NAFNetwork(BaseNetwork):
+    def __init__(self, input_dim, action_dim, name, optimizer, update_option="soft_update"):
+        super(NAFNetwork, self).__init__(input_dim=input_dim, action_dim=action_dim, name=name, optimizer=optimizer,
+                                         update_option=update_option)
+
+    def compute_gradient(self):
+        pass
+
+    def build(self, name):
+        """
+        Build the NAF network. We will combine value, action, and advantage function parameters
+        in the same network in this implementation.
+        """
+        # define placeholders
+        x = tf.placeholder(dtype=tf.float32, name="%s_state_input" % name)
+        action = tf.placeholder(dtype=tf.float32, name="%s_action_input" % name)
+
+        # define network
+        with tf.variable_scope(name):
+            if len(self.input_dim) == 1:    # it should be low dim, only fully connected networks
+                # define shared layers
+                # TODO: Action should be added
+                net = tf.nn.relu(dense_layer(x, initializer=self.initializer, output_dim=200, scope="fc1",
+                                             use_bias=True))
+                net = tf.nn.relu(dense_layer(net, initializer=self.initializer, output_dim=200, scope="fc2",
+                                             use_bias=True))
+
+                # define V
+                with tf.variable_scope("%s_v" % name):
+                    # v = dense_layer(net, 1, initializer=)
+                    pass
