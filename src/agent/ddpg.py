@@ -7,6 +7,7 @@ import os
 from src.policies import *
 from gym.wrappers import Monitor
 import tensorflow as tf
+from gym.wrappers import TimeLimit
 
 # TODO: 3. Add batch normalization to actor and critic networks
 # TODO: 7. Create Policy class so that different policies can be implemented.
@@ -19,7 +20,7 @@ class DDPG(BaseAgent):
         A deep deterministic policy gradient agent.
         """
         super(DDPG, self).__init__(sess, env=env, memory=memory, gamma=gamma, render=render, max_step=max_step,
-                                   env_name=env_name, warm_up=warm_up, record=record, evaluate_every=evaluate_every,
+                                   env_name=env_name, warm_up=warm_up, evaluate_every=evaluate_every,
                                    max_test_epoch=max_test_epoch)
 
         self.use_bn = use_bn
@@ -42,6 +43,17 @@ class DDPG(BaseAgent):
         self.global_epoch = self.sess.run(self.epoch)
         self.is_training = True if self.global_step < self.max_step else False
         self.q_summary = tf.summary.scalar("Q_Value", self.critic.network)
+
+        if record:
+            # TODO: only record on evaluation episode.
+            # TODO: when recording high dimensional data, monitor will raise memory allocation error.
+            if self.is_training:
+                self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir, "train"))
+            else:
+                self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir, "test"))
+        else:
+            # wrap the monitor with TimeLimit monitor
+            self.monitor = TimeLimit(env, max_episode_steps=env.spec.timestep_limit)
 
     def fit(self):
         print("Starting from step %s" % self.global_step)
@@ -74,11 +86,11 @@ class DDPG(BaseAgent):
                     action = self.monitor.action_space.sample()
                 else:
                     # take a noisy action, exploration
-                    action = self.action(current_state, False) + (self.policy_noise.noise() * self.action_bound)
+                    action = self.action(current_state) + (self.policy_noise.noise() * self.action_bound)
 
                 action = action.flatten()
                 # evaluate the q value
-                summary_q = self.critic_predict(current_state, action.reshape(1, -1), summary=True, is_train=False)
+                summary_q = self.critic_predict(current_state, action.reshape(1, -1), summary=True)
                 self.writer.add_summary(summary_q, global_step=self.global_step)
                 next_state, reward, done, _ = self.monitor.step(action)
                 next_state = next_state[np.newaxis]
@@ -98,10 +110,10 @@ class DDPG(BaseAgent):
                         a = a.reshape(self.batch_size, -1)
 
                         # step 1: target action
-                        target_action = self.actor_target_predict(next_s, is_train=True)
+                        target_action = self.actor_target_predict(next_s)
 
                         # step 2: estimate next state's Q value according to this action (target)
-                        y = self.critic_target_predict(next_s, target_action, is_train=True)
+                        y = self.critic_target_predict(next_s, target_action)
                         y = r + t * self.gamma * y
                         if self.use_bn:
                             # step 3: update critic
@@ -110,12 +122,13 @@ class DDPG(BaseAgent):
                                                                self.critic.action: a, self.critic.x: s})
 
                             # step 4: perceive action according to actor given s
-                            actor_action = self.action(s, True)
+                            actor_action = self.action(s)
 
                             # step 5: calculate action gradient
                             action_gradient = self.sess.run(self.critic.action_gradient,
                                                             {self.critic.x: s, self.critic.action: actor_action,
-                                                             self.critic.network_train: True})
+                                                             self.critic.network_train: False})
+
                             # step 6: update actor policy
                             self.sess.run(self.actor.train, {self.actor.x: s,
                                                              self.actor.action_gradient: action_gradient[0],
@@ -127,7 +140,7 @@ class DDPG(BaseAgent):
                                                                self.critic.action: a, self.critic.x: s})
 
                             # step 4: perceive action according to actor given s
-                            actor_action = self.action(s, True)
+                            actor_action = self.action(s)
 
                             # step 5: calculate action gradient
                             action_gradient = self.sess.run(self.critic.action_gradient,
@@ -167,28 +180,28 @@ class DDPG(BaseAgent):
         self.evaluate()
 
     def evaluate(self):
-        monitor = self.monitor
         print("Evaluating")
         # only test for 1 time if not reach the max training epoch
         max_test_epoch = self.max_test_epoch if not self.is_training else 1
         total_reward = 0
         for epoch in range(max_test_epoch):
             # start the environment
-            state = monitor.reset()
+            state = self.monitor.reset()
             step = 0
             done = False
             # start one epoch
             while not done:
                 self.monitor.render()
-                action = self.action(state[np.newaxis], False)
-                state, reward, done, _ = monitor.step(action.flatten())
+                action = self.action(state[np.newaxis])
+                state, reward, done, _ = self.monitor.step(action.flatten())
                 total_reward += reward
                 step += 1
+
         print("Average evaluation reward is %s" % (total_reward/max_test_epoch))
         if not self.is_training:
             self.monitor.close()
 
-    def critic_predict(self, state, action, summary=False, is_train=None):
+    def critic_predict(self, state, action, summary=False):
         """
         If summary is True, we also get the q value. This is used for logging.
         """
@@ -200,21 +213,21 @@ class DDPG(BaseAgent):
         else:
             if summary:
                 return self.sess.run(self.q_summary, feed_dict={self.critic.action: action, self.critic.x: state,
-                                                                self.critic.network_train: is_train})
+                                                                self.critic.network_train: False})
             else:
                 return self.sess.run(self.critic.network, feed_dict={self.critic.action: action, self.critic.x: state,
-                                                                self.critic.network_train: is_train})
+                                                                self.critic.network_train: False})
 
-    def critic_target_predict(self, state, action, is_train=None):
+    def critic_target_predict(self, state, action):
         if not self.use_bn:
             return self.sess.run(self.critic.target,
                                  feed_dict={self.critic.target_action: action, self.critic.target_x: state})
         else:
             return self.sess.run(self.critic.target, feed_dict={self.critic.target_action: action,
                                                                 self.critic.target_x: state,
-                                                                self.critic.target_train: is_train})
+                                                                self.critic.target_train: False})
 
-    def action(self, state, is_train=None):
+    def action(self, state):
         """
         For evaluation without noise
         """
@@ -223,11 +236,11 @@ class DDPG(BaseAgent):
                                   feed_dict={self.actor.x: state})) * self.action_bound
         else:
             return (self.sess.run(self.actor.network,
-                                  feed_dict={self.actor.x: state, self.actor.network_train: is_train})) * self.action_bound
+                                  feed_dict={self.actor.x: state, self.actor.network_train: False})) * self.action_bound
 
-    def actor_target_predict(self, state, is_train=None):
+    def actor_target_predict(self, state):
         if not self.use_bn:
             return self.sess.run(self.actor.target, feed_dict={self.actor.target_x: state}) * self.action_bound
         else:
             return self.sess.run(self.actor.target, feed_dict={self.actor.target_x: state,
-                                                               self.actor.target_train: is_train}) * self.action_bound
+                                                               self.actor.target_train: False}) * self.action_bound

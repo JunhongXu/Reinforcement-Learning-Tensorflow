@@ -7,7 +7,7 @@ import tensorflow as tf
 
 class BaseNetwork(object):
     def __init__(self, input_dim, action_dim, update_option, name, optimizer, use_bn,
-                 initializer=tf.contrib.layers.xavier_initializer(), tau=None):
+                 initializer=tf.contrib.layers.variance_scaling_initializer(uniform=True), tau=None):
         """
         Abstarct class for creating networks
         :param input_dim:
@@ -108,22 +108,25 @@ class CriticNetwork(BaseNetwork):
                     is_train = tf.placeholder(tf.bool, name="%s_is_train" % name)
 
                     # normalize input
-                    inpt = batch_norm(x, is_train=is_train, scope="norm_inpt")
+                    inpt = batch_norm(x, is_train=is_train, scale=True, scope="norm_inpt")
 
                     # normalize first layer
                     net = dense_layer(inpt, 400, self.initializer, scope="fc1", use_bias=True)
                     net = tf.nn.relu(batch_norm(net, is_train, scope="fc1"))
 
                     # second layer without normalizing
-                    net = tf.nn.relu(dense_layer(tf.concat(1, (net, action)), 300, use_bias=True, scope="fc2",
-                                                 initializer=self.initializer))
+                    net_action = dense_layer(action, 300, self.initializer, scope="action_fc2", use_bias=True)
+                    net = tf.nn.relu(net_action + dense_layer(net, scope="fc2", use_bias=True, output_dim=300,
+                                                              initializer=self.initializer))
+
                     net = dense_layer(net, 1, tf.random_uniform_initializer(-3e-3, 3e-3), scope="q", use_bias=True)
                     return tf.squeeze(net), x, action, is_train
                 else:
 
                     net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
-                    net = dense_layer(tf.concat(1, (net, action)), 300, use_bias=True, scope="fc2",
-                                      initializer=self.initializer)
+                    net = dense_layer(action, 300, use_bias=True, scope="action_fc2", initializer=self.initializer) + \
+                          dense_layer(net, 300, use_bias=True, scope="fc2", initializer=self.initializer)
+
                     net = tf.nn.relu(net)
 
                     # for low dim, weights are from uniform[-3e-3, 3e-3]
@@ -193,7 +196,7 @@ class ActorNetwork(BaseNetwork):
                 if self.use_bn:
                     is_train = tf.placeholder(tf.bool, name="%s_isTrain" % name)
                     # normalize input
-                    inpt = batch_norm(x, is_train, "%s_norm_inpt" % name)
+                    inpt = batch_norm(x, is_train, "%s_norm_inpt" % name, scale=True)
 
                     # normalize the first layer
                     net = dense_layer(inpt, 400, use_bias=True, scope="fc1", initializer=self.initializer)

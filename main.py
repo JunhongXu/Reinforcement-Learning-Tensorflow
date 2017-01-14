@@ -19,14 +19,15 @@ ENV_NAME = "BipedalWalker-v2"
 env = gym.make(ENV_NAME)
 action_dim = env.action_space.shape[0]
 state_dim = env.observation_space.shape
-critic = CriticNetwork(action_dim=action_dim, input_dim= state_dim, use_bn=False,
+critic = CriticNetwork(action_dim=action_dim, input_dim= state_dim, use_bn=True,
                        optimizer=tf.train.AdamOptimizer(CRITIC_LEARNING_RATE), tau=TAU)
-actor = ActorNetwork(action_dim=action_dim, input_dim= state_dim, use_bn=False,
+actor = ActorNetwork(action_dim=action_dim, input_dim= state_dim, use_bn=True,
                      optimizer=tf.train.AdamOptimizer(ACTOR_LEARNING_RATE), tau=TAU)
 
 memory = Memory(1000000, state_dim, action_dim, 64)
 # env = NormalizeWrapper(env, -1, 1)
-with tf.Session() as sess:
-    agent = DDPG(sess, critic, actor, env=env, max_test_epoch=200, warm_up=1000, use_bn=False,
-                 render=True, memory=memory, max_step=1000000, env_name=ENV_NAME)
-    agent.fit()
+with tf.device("/gpu:0"):
+    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+        agent = DDPG(sess, critic, actor, env=env, evaluate_every=10, max_test_epoch=100, warm_up=1000, use_bn=True,
+                     render=False, record=False, memory=memory, max_step=1000000, env_name=ENV_NAME)
+        agent.fit()
