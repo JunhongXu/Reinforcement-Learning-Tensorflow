@@ -222,8 +222,8 @@ class NAFNetwork(BaseNetwork):
         in the same network in this implementation.
         """
         # define placeholders
-        x = tf.placeholder(dtype=tf.float32, name="%s_state_input" % name)
-        action = tf.placeholder(dtype=tf.float32, name="%s_action_input" % name)
+        x = tf.placeholder(dtype=tf.float32, name="%s_state_input" % name, shape=(None, ) + self.input_dim)
+        action = tf.placeholder(dtype=tf.float32, name="%s_action_input" % name, shape=(None, 1))
         if self.use_bn:
             is_train = tf.placeholder(dtype=tf.bool, name="%s_is_train" % name)
 
@@ -231,21 +231,25 @@ class NAFNetwork(BaseNetwork):
         with tf.variable_scope(name):
             if len(self.input_dim) == 1:    # it should be low dim, only fully connected networks
                 # define shared layers
-                # TODO: Action should be added
                 net = tf.nn.relu(dense_layer(x, initializer=self.initializer, output_dim=200, scope="fc1",
                                              use_bias=True))
                 net = tf.nn.relu(dense_layer(net, initializer=self.initializer, output_dim=200, scope="fc2",
                                              use_bias=True))
 
                 # define V
-                with tf.variable_scope("%s_v" % name):
-                    # v = dense_layer(net, 1, initializer=)
-                    pass
+                v = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="v",
+                                use_bias=True)
 
                 # define action output u
-                with tf.variable_scope("%s_u" % name):
-                    pass
+                mu = dense_layer(net, self.action_dim, initializer=tf.random_uniform_initializer(-3e-3, 3e-3),
+                                 scope="mu", use_bias=True)
 
-                # define P
-                with tf.variable_scope("%s_p" % name):
+                # define advantage matrix l
+                l = dense_layer(net,(self.action_dim + 1) * self.action_dim/2,
+                                initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="l", use_bias=True)
+
+                # define advantage function
+                with tf.name_scope("advantage"):
+                    # advantage matrix
+                    # matrix =
                     pass
