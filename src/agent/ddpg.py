@@ -51,21 +51,23 @@ class DDPG(BaseAgent):
                 self.evaluate()
 
             # re-initialize per game variables
-            current_state = self.monitor.reset()
+            current_state = self.env.reset()
             current_state = current_state[np.newaxis]
             per_game_step = 0
             per_game_reward = 0
             done = False
             self.policy.reset()
-            print("Progress: %s %s" % (progress(self.global_step, self.max_step, 100)[0],
-                                       progress(self.global_step, self.max_step, 100)[1]))
+            print("Epoch %s" % self.global_epoch)
+            print("Memory size %s" % self.memory.count)
+            print("Progress: %s %s" % (progress(self.global_step, self.max_step, 50)[0],
+                                       progress(self.global_step, self.max_step, 50)[1]))
             while not done:
                 if self.render:
-                    self.monitor.render()
+                    self.env.render()
 
                 if self.warm_up > self.memory.count:
                     # take a random action to fill up the memory
-                    action = self.monitor.action_space.sample()
+                    action = self.env.action_space.sample()
                 else:
                     # take a noisy action
                     action = self.action(current_state) + (self.policy.noise() * self.action_bound)
@@ -73,7 +75,7 @@ class DDPG(BaseAgent):
                 summary_q = self.critic_predict(current_state, action.reshape(1, -1), summary=True)
                 self.writer.add_summary(summary_q, global_step=self.global_step)
 
-                next_state, reward, done, _ = self.monitor.step(action)
+                next_state, reward, done, _ = self.env.step(action.flatten())
                 next_state = next_state[np.newaxis]
                 average_reward += reward
                 per_game_reward += reward
@@ -134,14 +136,12 @@ class DDPG(BaseAgent):
                 # refresh average reward
                 average_reward = 0
 
-        self.monitor.close()
         # if we reach the max step, evaluate the model
         self.is_training = False
         self.evaluate()
 
     def evaluate(self):
-        monitor = self.monitor if self.is_training else Monitor(self.env, os.path.join(self.monitor_dir, "evaluate"),
-                                                                mode="evaluation")
+        monitor = self.monitor if self.record else self.env
         print("Evaluating")
         # only test for 1 time if not reach the max training epoch
         max_test_epoch = self.max_test_epoch if not self.is_training else 1
@@ -153,9 +153,9 @@ class DDPG(BaseAgent):
             done = False
             # start one epoch
             while not done:
-                self.monitor.render()
+                monitor.render()
                 action = self.action(state[np.newaxis])
-                state, reward, done, _ = monitor.step(action)
+                state, reward, done, _ = monitor.step(action.flatten())
                 total_reward += reward
                 step += 1
         print("Average evaluation reward is %s" % (total_reward/max_test_epoch))

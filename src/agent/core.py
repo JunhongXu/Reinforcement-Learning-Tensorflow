@@ -32,16 +32,19 @@ class BaseAgent(object):
         self.evaluate_every = evaluate_every
         self.policy = policy
         self.monitor_dir = os.path.join("tmp", type(self).__name__, env_name)
+        self.record = record
+
         if record:
             # TODO: only record on evaluation episode.
             # TODO: when recording high dimensional data, monitor will raise memory allocation error.
-            self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir, "train"))
-        else:
-            # wrap the monitor with TimeLimit monitor
-            self.monitor = TimeLimit(env, max_episode_steps=env.spec.timestep_limit)
+            # only called on evaluation episode, so video callable should be True
+            self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir))
 
-        # to be wrapped during evaluation
-        self.env = env
+        # wrap the monitor with TimeLimit monitor if it is pure env
+        if not hasattr(env, "_wrapper_stack"):
+            self.env = TimeLimit(env, max_episode_steps=env.spec.timestep_limit)
+        else:
+            self.env = env
 
         # for summary writer
         self.logdir = os.path.join("log", type(self).__name__, env_name)

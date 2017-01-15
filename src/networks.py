@@ -101,9 +101,11 @@ class CriticNetwork(BaseNetwork):
         with tf.variable_scope(name):
             if len(self.input_dim) == 1:
                 net = tf.nn.relu(dense_layer(x, 400, use_bias=True, scope="fc1", initializer=self.initializer))
-                net = dense_layer(tf.concat(1, (net, action)), 300, use_bias=True, scope="fc2",
-                                  initializer=self.initializer)
-                net = tf.nn.relu(net)
+
+                net = dense_layer(net, 300, use_bias=True, scope="fc2", initializer=self.initializer)
+
+                action_layer = dense_layer(action, 300, initializer=self.initializer, use_bias=True, scope="action_fc2")
+                net = tf.nn.relu(action_layer + net)
 
                 # for low dim, weights are from uniform[-3e-3, 3e-3]
                 net = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="q",

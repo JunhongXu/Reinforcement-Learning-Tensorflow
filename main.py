@@ -4,6 +4,7 @@ from src.networks import *
 from src.replay import *
 import gym
 from src.env_wrapper import *
+from gym.wrappers import TimeLimit
 
 # Base learning rate for the Actor network
 ACTOR_LEARNING_RATE = 0.0001
@@ -13,7 +14,7 @@ CRITIC_LEARNING_RATE = 0.001
 GAMMA = 0.99
 # Soft target update param
 TAU = 0.001
-ENV_NAME = "MountainCarContinuous-v0"
+ENV_NAME = "BipedalWalker-v2"
 
 
 env = gym.make(ENV_NAME)
@@ -25,8 +26,10 @@ actor = ActorNetwork(action_dim=action_dim, input_dim= state_dim,
                      optimizer=tf.train.AdamOptimizer(ACTOR_LEARNING_RATE), tau=TAU)
 policy = OUNoise(action_dim)
 memory = Memory(1000000, state_dim, action_dim, 64)
-env = NormalizeWrapper(env, -1, 1)
+# env = NormalizeWrapper(env, -1, 1)
+
+# env = TimeLimit(env)
 with tf.Session() as sess:
-    agent = DDPG(sess, critic, actor, env=env, max_test_epoch=200, warm_up=10000, policy=policy,
-                 render=True, memory=memory, max_step=1000000, env_name=ENV_NAME)
+    agent = DDPG(sess, critic, actor, env=env, evaluate_every=100, max_test_epoch=100, warm_up=20000, policy=policy,
+                 render=False, record=True, memory=memory, max_step=10000000, env_name=ENV_NAME)
     agent.fit()
