@@ -207,14 +207,32 @@ class ActorNetwork(BaseNetwork):
 
 
 class NAFNetwork(BaseNetwork):
-    def __init__(self, input_dim, action_dim, name, optimizer, use_bn, update_option="soft_update"):
+    def __init__(self, input_dim, action_dim, name, optimizer, use_bn, update_option="soft_update", tau=None):
         super(NAFNetwork, self).__init__(input_dim=input_dim, action_dim=action_dim, name=name, optimizer=optimizer,
-                                         update_option=update_option)
+                                         update_option=update_option, tau=tau)
+        # normalized Q network
+        self.Q, self.V, self.mu, self.action, self.x = self.network
 
-        self.use_bn = use_bn
+        # target network
+        self.target_Q, self.target_V, self.target_mu, self.target_action, self.target_x = self.target
+
+        self.y = tf.placeholder(dtype=tf.float32, shape=(None, 1), name="y")
+
+        # define loss
+        self.loss = tf.reduce_mean(tf.squared_difference(self.y, self.Q))
+
+        # define gradients
+        self.gradients = self.compute_gradient()
+
+        # update ops
+        self.update = self.create_train_op()
+
+        # target network update
+        self.target_update = self.create_update_op()
 
     def compute_gradient(self):
-        pass
+        grads = tf.gradients(self.loss, self.network_param, name="naf_gradients")
+        return grads
 
     def build(self, name):
         """
@@ -224,8 +242,6 @@ class NAFNetwork(BaseNetwork):
         # define placeholders
         x = tf.placeholder(dtype=tf.float32, name="%s_state_input" % name, shape=(None, ) + self.input_dim)
         action = tf.placeholder(dtype=tf.float32, name="%s_action_input" % name, shape=(None, 1))
-        if self.use_bn:
-            is_train = tf.placeholder(dtype=tf.bool, name="%s_is_train" % name)
 
         # define network
         with tf.variable_scope(name):
@@ -237,15 +253,15 @@ class NAFNetwork(BaseNetwork):
                                              use_bias=True))
 
                 # define V (N, 1)
-                v = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="v",
+                V = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="v",
                                 use_bias=True)
 
                 # define action output u (N, A)
-                mu = dense_layer(net, self.action_dim, initializer=tf.random_uniform_initializer(-3e-3, 3e-3),
-                                 scope="mu", use_bias=True)
+                mu = tf.tanh(dense_layer(net, self.action_dim, initializer=tf.random_uniform_initializer(-3e-3, 3e-3),
+                                 scope="mu", use_bias=True))
 
                 # define advantage matrix l (N, A(A+1)/2)
-                l = dense_layer(net,(self.action_dim + 1) * self.action_dim/2,
+                L = dense_layer(net,(self.action_dim + 1) * self.action_dim/2,
                                 initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="l", use_bias=True)
 
                 # define advantage function
@@ -255,10 +271,10 @@ class NAFNetwork(BaseNetwork):
                     matrix = []
                     for row in range(0, self.action_dim):
                         pivot = row + count
-                        diag_eles = tf.exp(tf.slice(l, (0, pivot), (-1, 1)), name="diag")
+                        diag_eles = tf.exp(tf.slice(L, (0, pivot), (-1, 1)), name="diag")
 
                         # slice l starts from # of elements we have already seen
-                        non_diag = tf.slice(l, (0, count), (-1, row), name="non_diag")
+                        non_diag = tf.slice(L, (0, count), (-1, row), name="non_diag")
 
                         # pad zeros to diagonal elements
                         elements = tf.pad(paddings=[[0, 0], [0, self.action_dim - row - 1]], tensor=diag_eles)
@@ -272,6 +288,20 @@ class NAFNetwork(BaseNetwork):
 
                     # the advantage matrix L
                     matrix = tf.pack(matrix, axis=1)
+                    # P (N, A, A) = L.DOT(L.T)
                     P = tf.batch_matmul(matrix, tf.transpose(matrix, (0, 2, 1)))
+                    # insert one dimension for (action - mu) to become shape of (N, A, 1)
+                    m = tf.expand_dims((action - mu), dim=-1)
+                    # (N, 1, A) * (N, A, A) = (N, 1, A)
+                    A = -tf.batch_matmul(tf.transpose(m, (0, 2, 1)), P)
+                    # (N, 1, A) * (N, A, 1) = (N, 1, 1)
+                    A = tf.batch_matmul(A, m)/2
+                    # (N, 1)
+                    A = tf.squeeze(A, axis=2)
+                with tf.name_scope("Q"):
+                    Q = A + V
+            else:
+                # TODO: high dimension implementation
+                raise NotImplementedError("High dimension is not implemented!")
 
-                    # TODO: implementing advantage value
+        return Q, V, mu, action, x

@@ -3,9 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from src.agent.core import BaseAgent
 from src.utilities import *
-import os
-from src.policies import *
-from gym.wrappers import Monitor
 import tensorflow as tf
 
 # TODO: 3. Add batch normalization to actor and critic networks
@@ -13,13 +10,13 @@ import tensorflow as tf
 
 
 class DDPG(BaseAgent):
-    def __init__(self, sess, critic, actor, env, env_name, memory, policy, max_step, record=True, warm_up=5000,
-                 max_test_epoch=3, gamma=.99, evaluate_every=1000, render=True):
+    def __init__(self, sess, critic, actor, env, env_name, memory, policy, max_step, update_step=5,
+                 record=True, warm_up=5000, max_test_epoch=3, gamma=.99, evaluate_every=1000, render=True):
         """
         A deep deterministic policy gradient agent.
         """
-        super(DDPG, self).__init__(sess, env=env, policy=policy, memory=memory, gamma=gamma, render=render,
-                                   max_step=max_step, env_name=env_name, warm_up=warm_up, record=record,
+        super(DDPG, self).__init__(sess, env=env, policy=policy, update_step=update_step, memory=memory, gamma=gamma,
+                                   render=render, max_step=max_step, env_name=env_name, warm_up=warm_up, record=record,
                                    evaluate_every=evaluate_every, max_test_epoch=max_test_epoch)
 
         # action bound

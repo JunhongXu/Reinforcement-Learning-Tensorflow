@@ -5,6 +5,7 @@ from src.replay import *
 import gym
 from src.env_wrapper import *
 from gym.wrappers import TimeLimit
+from src.policies import OUNoise
 
 # Base learning rate for the Actor network
 ACTOR_LEARNING_RATE = 0.0001
