@@ -236,20 +236,42 @@ class NAFNetwork(BaseNetwork):
                 net = tf.nn.relu(dense_layer(net, initializer=self.initializer, output_dim=200, scope="fc2",
                                              use_bias=True))
 
-                # define V
+                # define V (N, 1)
                 v = dense_layer(net, 1, initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="v",
                                 use_bias=True)
 
-                # define action output u
+                # define action output u (N, A)
                 mu = dense_layer(net, self.action_dim, initializer=tf.random_uniform_initializer(-3e-3, 3e-3),
                                  scope="mu", use_bias=True)
 
-                # define advantage matrix l
+                # define advantage matrix l (N, A(A+1)/2)
                 l = dense_layer(net,(self.action_dim + 1) * self.action_dim/2,
                                 initializer=tf.random_uniform_initializer(-3e-3, 3e-3), scope="l", use_bias=True)
 
                 # define advantage function
                 with tf.name_scope("advantage"):
-                    # advantage matrix
-                    # matrix =
-                    pass
+                    count = 0
+                    # iterate over action dimension to create advantage matrix for a batch of inputs
+                    matrix = []
+                    for row in range(0, self.action_dim):
+                        pivot = row + count
+                        diag_eles = tf.exp(tf.slice(l, (0, pivot), (-1, 1)), name="diag")
+
+                        # slice l starts from # of elements we have already seen
+                        non_diag = tf.slice(l, (0, count), (-1, row), name="non_diag")
+
+                        # pad zeros to diagonal elements
+                        elements = tf.pad(paddings=[[0, 0], [0, self.action_dim - row - 1]], tensor=diag_eles)
+
+                        # concatenate elements with  non-diagonal elements
+                        elements = tf.concat(1, (non_diag, elements))
+
+                        count += row + 1
+
+                        matrix.append(elements)
+
+                    # the advantage matrix L
+                    matrix = tf.pack(matrix, axis=1)
+                    P = tf.batch_matmul(matrix, tf.transpose(matrix, (0, 2, 1)))
+
+                    # TODO: implementing advantage value
