@@ -13,7 +13,7 @@ LEARNING_RATE = 1e-3
 GAMMA = 0.99
 # Soft target update param
 TAU = 0.001
-ENV_NAME = "Pendulum-v0"
+ENV_NAME = "BipedalWalker-v2"
 
 env = gym.make(ENV_NAME)
 action_dim = env.action_space.shape[0]
@@ -25,6 +25,6 @@ memory = Memory(1000000, state_dim, action_dim, 64)
 policy = OUNoise(action_dim)
 # env = NormalizeWrapper(env, -1, 1)
 with tf.Session() as sess:
-    agent = NAF(sess, network, env, ENV_NAME, 100000, memory=memory, policy=policy, record=False, render=True,
-                warm_up=1000)
+    agent = NAF(sess, network, env, ENV_NAME, max_step=10000000, evaluate_every=100, save_every=15000, memory=memory, policy=policy,
+                record=True, render=False, warm_up=10000)
     agent.fit()

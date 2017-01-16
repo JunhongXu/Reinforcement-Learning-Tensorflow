@@ -39,10 +39,10 @@ class BaseAgent(object):
             # TODO: only record on evaluation episode.
             # TODO: when recording high dimensional data, monitor will raise memory allocation error.
             # only called on evaluation episode, so video callable should be True
-            self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir))
+            self.monitor = Monitor(env, directory=os.path.join(self.monitor_dir), video_callable=lambda x: x % 100 == 0)
 
         # wrap the monitor with TimeLimit monitor if it is pure env
-        if not hasattr(env, "_wrapper_stack"):
+        if not hasattr(env, "_wrapper_stack") or "TimeLimit" not in env._wrapper_stack:
             self.env = TimeLimit(env, max_episode_steps=env.spec.timestep_limit)
         else:
             self.env = env
@@ -68,7 +68,7 @@ class BaseAgent(object):
             self.epoch_assign = tf.assign_add(self.epoch, tf.Variable(1, trainable=False))
 
         # save directory
-        self.save_dir = os.path.join("models", env_name)
+        self.save_dir = os.path.join("models", env_name, type(self).__name__)
         # check if the save directory is there
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)

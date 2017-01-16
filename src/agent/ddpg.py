@@ -67,7 +67,7 @@ class DDPG(BaseAgent):
                     action = self.env.action_space.sample()
                 else:
                     # take a noisy action
-                    action = self.action(current_state) + (self.policy.noise() * self.action_bound)
+                    action = self.action(current_state) + self.policy.noise()
                 # evaluate the q value
                 summary_q = self.critic_predict(current_state, action.reshape(1, -1), summary=True)
                 self.writer.add_summary(summary_q, global_step=self.global_step)
@@ -128,8 +128,6 @@ class DDPG(BaseAgent):
             if self.global_epoch % self.evaluate_every == 0:
                 print("At training epoch %s, average reward is %s" % (self.global_epoch,
                                                                       average_reward/self.evaluate_every))
-                self.summary.value.add(tag="Average_reward", simple_value=float(average_reward/self.evaluate_every))
-                self.writer.add_summary(self.summary, global_step=self.global_step)
                 # refresh average reward
                 average_reward = 0
 
@@ -155,8 +153,12 @@ class DDPG(BaseAgent):
                 state, reward, done, _ = monitor.step(action.flatten())
                 total_reward += reward
                 step += 1
+
         print("Average evaluation reward is %s" % (total_reward/max_test_epoch))
-        if not self.is_training:
+        self.summary.value.add(tag="Average_reward", simple_value=float(total_reward/self.evaluate_every))
+        self.writer.add_summary(self.summary, global_step=self.global_step)
+
+        if not self.is_training and self.record:
             self.monitor.close()
 
     def critic_predict(self, state, action, summary=False):

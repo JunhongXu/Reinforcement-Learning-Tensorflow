@@ -241,7 +241,7 @@ class NAFNetwork(BaseNetwork):
         """
         # define placeholders
         x = tf.placeholder(dtype=tf.float32, name="%s_state_input" % name, shape=(None, ) + self.input_dim)
-        action = tf.placeholder(dtype=tf.float32, name="%s_action_input" % name, shape=(None, 1))
+        action = tf.placeholder(dtype=tf.float32, name="%s_action_input" % name, shape=(None, self.action_dim))
 
         # define network
         with tf.variable_scope(name):
@@ -304,4 +304,4 @@ class NAFNetwork(BaseNetwork):
                 # TODO: high dimension implementation
                 raise NotImplementedError("High dimension is not implemented!")
 
-        return Q, V, mu, action, x
+        return tf.squeeze(Q), V, mu, action, x
